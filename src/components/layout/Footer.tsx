@@ -12,8 +12,8 @@ export default function Footer() {
     { label: "المدونة", href: "https://lamhaoptics.com/blog" },
     { label: "من نحن", href: "https://lamhaoptics.com/%D9%85%D9%86-%D9%86%D8%AD%D9%86/page-1452466801" },
     { label: "الشحن والتوصيل", href: "https://lamhaoptics.com/%D8%A7%D9%84%D8%B4%D8%AD%D9%86-%D9%88%D8%A7%D9%84%D8%AA%D9%88%D8%B5%D9%8A%D9%84/page-1277251452" },
-    { label: "سياسة الاستبدال والإسترجاع", href: "http://localhost:3000/privacy" },
-    { label: "تأمين ملاذ", href: "http://localhost:3000/terms" },
+    { label: "سياسة الاستبدال والإسترجاع", href: "/privacy" },
+    { label: "تأمين ملاذ", href: "/terms" },
   ];
 
   return (

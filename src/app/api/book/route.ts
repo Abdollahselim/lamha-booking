@@ -2,7 +2,21 @@ import { GoogleSpreadsheet, GoogleSpreadsheetWorksheet, GoogleSpreadsheetRow } f
 import { JWT } from 'google-auth-library';
 import { NextResponse } from 'next/server';
 import { format, parseISO } from 'date-fns';
-import DOMPurify from 'isomorphic-dompurify';
+
+
+// =========================================================
+// 🧹 SANITIZE FUNCTION 
+// =========================================================
+
+function sanitizeText(text: string | undefined): string {
+  if (!text) return "";
+  return text
+    .replace(/</g, "&lt;") // استبدال علامة أصغر من
+    .replace(/>/g, "&gt;") // استبدال علامة أكبر من
+    .replace(/"/g, "&quot;") // استبدال علامات التنصيص
+    .replace(/'/g, "&#039;") // استبدال الفاصلة العليا
+    .trim(); // إزالة المسافات الزائدة
+}
 
 // =========================================================
 // 📝 TYPE DEFINITIONS
@@ -26,9 +40,6 @@ const REQUEST_LIMIT = 5;
 const REQUEST_WINDOW = 60 * 1000; // 1 Minute
 const requestCounts = new Map<string, { count: number; resetTime: number }>();
 
-/**
- * Rate Limiting Middleware Logic
- */
 function checkRateLimit(req: Request): boolean {
   const ip = req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || 'unknown';
   const now = Date.now();
@@ -46,21 +57,19 @@ function checkRateLimit(req: Request): boolean {
 // =========================================================
 // 🔐 GOOGLE SHEETS HELPER
 // =========================================================
-
 const getCleanPrivateKey = (): string => {
   const key = process.env.GOOGLE_PRIVATE_KEY;
   if (!key) throw new Error('GOOGLE_PRIVATE_KEY is missing');
-  return key.replace(/^"|"$/g, '').replace(/\\n/g, '\n');
+  
+  const cleanKey = key.replace(/^"|"$/g, '');
+  if (cleanKey.includes('-----BEGIN PRIVATE KEY-----') && cleanKey.includes('\n')) {
+    return cleanKey;
+  }
+  return cleanKey.replace(/\\n/g, '\n');
 };
 
-/**
- * Initialize Google Sheet Connection.
- */
 async function getGoogleSheet(): Promise<GoogleSpreadsheetWorksheet> {
-  if (
-    !process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL ||
-    !process.env.GOOGLE_SHEET_ID
-  ) {
+  if (!process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL || !process.env.GOOGLE_SHEET_ID) {
     throw new Error('Missing Google Sheets Credentials in Environment Variables');
   }
 
@@ -96,7 +105,7 @@ async function handleUpdate(sheet: GoogleSpreadsheetWorksheet, data: BookingRequ
 
   if (!row) throw new Error('Booking not found');
 
-  const sanitizedComments = DOMPurify.sanitize(data.comments || "");
+  const sanitizedComments = sanitizeText(data.comments);
   const formattedDate = data.date ? format(parseISO(data.date), 'dd/MM/yyyy') : row.get('Date');
 
   if (data.date) row.set('Date', formattedDate);
@@ -124,7 +133,6 @@ async function handleCreate(sheet: GoogleSpreadsheetWorksheet, data: BookingRequ
   const formattedDate = format(parseISO(data.date), 'dd/MM/yyyy');
   const rows = await sheet.getRows();
 
-  // Idempotency check
   const existingBooking = rows.find((row) => 
     row.get('Phone') === data.phone && 
     row.get('Date') === formattedDate && 
@@ -143,7 +151,8 @@ async function handleCreate(sheet: GoogleSpreadsheetWorksheet, data: BookingRequ
   const newBookingId = crypto.randomUUID();
   const normalizedPhone = data.phone.replace(/\D/g, '').replace(/^0/, '');
   const customerId = `CID-${normalizedPhone}`;
-  const sanitizedComments = DOMPurify.sanitize(data.comments || "");
+  
+  const sanitizedComments = sanitizeText(data.comments);
 
   await sheet.addRow({
     BookingID: newBookingId,
@@ -199,7 +208,6 @@ export async function POST(req: Request) {
     return NextResponse.json(response);
 
   } catch (error: unknown) {
-    // ✅ Fix: Use 'unknown' instead of 'any' and narrow the type
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
     console.error('[API Error]:', errorMessage);
     
@@ -233,11 +241,9 @@ export async function GET(req: Request) {
     try {
         formattedDate = format(parseISO(date), 'dd/MM/yyyy');
     } catch { 
-        // ✅ Fix: Removed unused 'e' variable
         return NextResponse.json({ error: 'Invalid Date Format' }, { status: 400 });
     }
 
-    // ✅ Fix: Explicitly typed 'row' as GoogleSpreadsheetRow in filter/map
     const bookedSlots = rows
       .filter((row: GoogleSpreadsheetRow) => {
         const isSameDate = row.get('Date') === formattedDate;
@@ -250,7 +256,6 @@ export async function GET(req: Request) {
     return NextResponse.json({ success: true, bookedSlots });
 
   } catch (error: unknown) {
-    // ✅ Fix: Proper error handling without 'any'
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
     console.error('[Availability Error]:', errorMessage);
     return NextResponse.json(
