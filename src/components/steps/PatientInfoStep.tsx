@@ -255,8 +255,8 @@ export function PatientInfoStep() {
           <div className="flex flex-row-reverse items-center justify-end gap-3 text-right">
             <label htmlFor="terms" className="text-sm text-slate-600 cursor-pointer select-none">
               لقد قرأت ووافقت على{" "}
-              <a href="/terms" target="_blank" className="text-[#349998] hover:underline font-bold">الشروط والأحكام</a> و{" "}
-              <a href="/privacy" target="_blank" className="text-[#349998] hover:underline font-bold">سياسة الخصوصية</a>
+              <a href="https://lamha-booking.vercel.app/terms" target="_blank" className="text-[#349998] hover:underline font-bold">الشروط والأحكام</a> و{" "}
+              <a href="https://lamha-booking.vercel.app/privacy" target="_blank" className="text-[#349998] hover:underline font-bold">سياسة الخصوصية</a>
             </label>
             <div className="relative flex items-center">
               <input
