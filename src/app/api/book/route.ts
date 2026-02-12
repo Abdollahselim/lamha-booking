@@ -1,181 +1,220 @@
-import { GoogleSpreadsheet } from 'google-spreadsheet';
+import { GoogleSpreadsheet, GoogleSpreadsheetWorksheet, GoogleSpreadsheetRow } from 'google-spreadsheet';
 import { JWT } from 'google-auth-library';
 import { NextResponse } from 'next/server';
 import { format, parseISO } from 'date-fns';
 import DOMPurify from 'isomorphic-dompurify';
 
 // =========================================================
-// 🛡️ RATE LIMITER (Simple IP-based)
+// 📝 TYPE DEFINITIONS
 // =========================================================
+interface BookingRequest {
+  action: 'create' | 'update' | 'cancel';
+  bookingId?: string;
+  firstName?: string;
+  lastName?: string;
+  phone?: string;
+  date?: string;
+  time?: string;
+  service?: string;
+  comments?: string;
+}
+
+// =========================================================
+// ⚙️ CONFIGURATION & RATE LIMITER
+// =========================================================
+const REQUEST_LIMIT = 5;
+const REQUEST_WINDOW = 60 * 1000; // 1 Minute
 const requestCounts = new Map<string, { count: number; resetTime: number }>();
 
+/**
+ * Rate Limiting Middleware Logic
+ */
+function checkRateLimit(req: Request): boolean {
+  const ip = req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || 'unknown';
+  const now = Date.now();
+  const record = requestCounts.get(ip);
+
+  if (record && now < record.resetTime) {
+    if (record.count >= REQUEST_LIMIT) return false;
+    record.count++;
+  } else {
+    requestCounts.set(ip, { count: 1, resetTime: now + REQUEST_WINDOW });
+  }
+  return true;
+}
+
+// =========================================================
+// 🔐 GOOGLE SHEETS HELPER
+// =========================================================
+
+const getCleanPrivateKey = (): string => {
+  const key = process.env.GOOGLE_PRIVATE_KEY;
+  if (!key) throw new Error('GOOGLE_PRIVATE_KEY is missing');
+  return key.replace(/^"|"$/g, '').replace(/\\n/g, '\n');
+};
+
+/**
+ * Initialize Google Sheet Connection.
+ */
+async function getGoogleSheet(): Promise<GoogleSpreadsheetWorksheet> {
+  if (
+    !process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL ||
+    !process.env.GOOGLE_SHEET_ID
+  ) {
+    throw new Error('Missing Google Sheets Credentials in Environment Variables');
+  }
+
+  const auth = new JWT({
+    email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
+    key: getCleanPrivateKey(),
+    scopes: ['https://www.googleapis.com/auth/spreadsheets'],
+  });
+
+  const doc = new GoogleSpreadsheet(process.env.GOOGLE_SHEET_ID, auth);
+  await doc.loadInfo();
+  return doc.sheetsByIndex[0];
+}
+
+// =========================================================
+// 🚀 ACTION HANDLERS
+// =========================================================
+
+async function handleCancel(sheet: GoogleSpreadsheetWorksheet, bookingId: string) {
+  const rows = await sheet.getRows();
+  const row = rows.find((r) => r.get('BookingID') === bookingId);
+
+  if (!row) throw new Error('Booking not found');
+
+  row.set('Status', 'Cancelled');
+  await row.save();
+  return { success: true, message: "تم إلغاء الحجز بنجاح" };
+}
+
+async function handleUpdate(sheet: GoogleSpreadsheetWorksheet, data: BookingRequest) {
+  const rows = await sheet.getRows();
+  const row = rows.find((r) => r.get('BookingID') === data.bookingId);
+
+  if (!row) throw new Error('Booking not found');
+
+  const sanitizedComments = DOMPurify.sanitize(data.comments || "");
+  const formattedDate = data.date ? format(parseISO(data.date), 'dd/MM/yyyy') : row.get('Date');
+
+  if (data.date) row.set('Date', formattedDate);
+  if (data.time) row.set('Time', data.time);
+  if (data.service) row.set('Service', data.service);
+  if (data.firstName || data.lastName) {
+     const oldName = row.get('Name') || "";
+     const newFirst = data.firstName || String(oldName).split(' ')[0];
+     const newLast = data.lastName || String(oldName).split(' ')[1] || "";
+     row.set('Name', `${newFirst} ${newLast}`.trim());
+  }
+  
+  row.set('Comments', sanitizedComments);
+  row.set('Status', 'Active'); 
+
+  await row.save();
+  return { success: true, message: "تم تحديث الحجز بنجاح", bookingId: data.bookingId };
+}
+
+async function handleCreate(sheet: GoogleSpreadsheetWorksheet, data: BookingRequest) {
+  if (!data.firstName || !data.phone || !data.date || !data.time || !data.service) {
+    throw new Error('Missing required fields');
+  }
+
+  const formattedDate = format(parseISO(data.date), 'dd/MM/yyyy');
+  const rows = await sheet.getRows();
+
+  // Idempotency check
+  const existingBooking = rows.find((row) => 
+    row.get('Phone') === data.phone && 
+    row.get('Date') === formattedDate && 
+    row.get('Time') === data.time && 
+    row.get('Status') === 'Active'
+  );
+
+  if (existingBooking) {
+    return { 
+      success: true, 
+      message: "هذا الموعد محجوز مسبقاً لك!", 
+      bookingId: existingBooking.get('BookingID') 
+    };
+  }
+
+  const newBookingId = crypto.randomUUID();
+  const normalizedPhone = data.phone.replace(/\D/g, '').replace(/^0/, '');
+  const customerId = `CID-${normalizedPhone}`;
+  const sanitizedComments = DOMPurify.sanitize(data.comments || "");
+
+  await sheet.addRow({
+    BookingID: newBookingId,
+    CustomerID: customerId,
+    Status: 'Active',
+    Date: formattedDate,
+    Time: data.time,
+    Service: data.service,
+    Name: `${data.firstName} ${data.lastName}`,
+    Phone: data.phone,
+    Comments: sanitizedComments,
+  });
+
+  return { 
+    success: true, 
+    message: "تم حفظ الحجز بنجاح!", 
+    bookingId: newBookingId 
+  };
+}
+
+// =========================================================
+// 🌐 POST ENDPOINT
+// =========================================================
 export async function POST(req: Request) {
   try {
-    // =========================================================
-    // 🔐 RATE LIMITING CHECK
-    // =========================================================
-    const ip = req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || 'unknown';
-    const now = Date.now();
-    const limit = 5; // Max 5 requests
-    const windowMs = 60 * 1000; // Per minute
-
-    const record = requestCounts.get(ip);
-    if (record && now < record.resetTime) {
-      if (record.count >= limit) {
-        return NextResponse.json(
-          { success: false, message: "عدد كبير من الطلبات. الرجاء الانتظار دقيقة." },
-          { status: 429 }
-        );
-      }
-      record.count++;
-    } else {
-      requestCounts.set(ip, { count: 1, resetTime: now + windowMs });
-    }
-
-    // =========================================================
-    // ✅ ENVIRONMENT VARIABLES CHECK
-    // =========================================================
-    if (!process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL || 
-        !process.env.GOOGLE_PRIVATE_KEY || 
-        !process.env.GOOGLE_SHEET_ID) {
-      console.error('[ERROR] Missing Google Sheets credentials in .env.local');
+    if (!checkRateLimit(req)) {
       return NextResponse.json(
-        { success: false, message: "خطأ في إعدادات الخادم" },
-        { status: 500 }
+        { success: false, message: "عدد كبير من الطلبات. الرجاء الانتظار دقيقة." },
+        { status: 429 }
       );
     }
 
-    // =========================================================
-    // 📥 PARSE REQUEST BODY
-    // =========================================================
-    const body = await req.json();
-    const { action, bookingId, firstName, lastName, phone, date, time, service, comments } = body;
+    const body: BookingRequest = await req.json();
+    const sheet = await getGoogleSheet();
 
-    // Helper: Normalize Phone to act as CustomerID
-    const normalizedPhone = phone?.replace(/\D/g, '').replace(/^0/, ''); // '5XXXXXXXX'
-    const customerId = `CID-${normalizedPhone}`;
-
-    // =========================================================
-    // 🛡️ VALIDATION
-    // =========================================================
-    if (action === 'create' || action === 'update') {
-      if (!firstName || !phone || !date || !time || !service) {
-        return NextResponse.json({ success: false, message: "بيانات الحجز غير مكتملة" }, { status: 400 });
-      }
+    let response;
+    switch (body.action) {
+      case 'create':
+        response = await handleCreate(sheet, body);
+        break;
+      case 'update':
+        if (!body.bookingId) throw new Error('Booking ID required for update');
+        response = await handleUpdate(sheet, body);
+        break;
+      case 'cancel':
+        if (!body.bookingId) throw new Error('Booking ID required for cancel');
+        response = await handleCancel(sheet, body.bookingId);
+        break;
+      default:
+        return NextResponse.json({ success: false, message: "إجراء غير معروف" }, { status: 400 });
     }
 
-    // =========================================================
-    // 🔌 GOOGLE SHEETS CONNECTION
-    // =========================================================
-    const serviceAccountAuth = new JWT({
-      email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
-      key: process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
-      scopes: ['https://www.googleapis.com/auth/spreadsheets'],
-    });
+    return NextResponse.json(response);
 
-    const doc = new GoogleSpreadsheet(process.env.GOOGLE_SHEET_ID as string, serviceAccountAuth);
-    await doc.loadInfo();
-    const sheet = doc.sheetsByIndex[0];
-    const rows = await sheet.getRows();
-
-    // =========================================================
-    // ⚙️ LOGIC HANDLING (CANCEL / UPDATE / CREATE)
-    // =========================================================
+  } catch (error: unknown) {
+    // ✅ Fix: Use 'unknown' instead of 'any' and narrow the type
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    console.error('[API Error]:', errorMessage);
     
-    // 1. CANCEL
-    if (action === 'cancel') {
-      if (!bookingId) return NextResponse.json({ success: false, message: "رقم الحجز مفقود" }, { status: 400 });
-      const rowToCancel = rows.find((row) => row.get('BookingID') === bookingId);
-      if (rowToCancel) {
-        rowToCancel.set('Status', 'Cancelled');
-        await rowToCancel.save();
-        return NextResponse.json({ success: true, message: "تم إلغاء الحجز بنجاح" });
-      }
-      return NextResponse.json({ success: false, message: "الحجز غير موجود" }, { status: 404 });
-    }
-
-    // 2. UPDATE (RESCHEDULE)
-    if (action === 'update') {
-      if (!bookingId) return NextResponse.json({ success: false, message: "رقم الحجز مفقود" }, { status: 400 });
-      const rowToUpdate = rows.find((row) => row.get('BookingID') === bookingId);
-      
-      if (rowToUpdate) {
-        // Sanitize and Format
-        const sanitizedComments = DOMPurify.sanitize(comments || "");
-        const formattedDate = format(parseISO(date), 'dd/MM/yyyy');
-
-        rowToUpdate.set('Date', formattedDate);
-        rowToUpdate.set('Time', time);
-        rowToUpdate.set('Service', service);
-        rowToUpdate.set('Comments', sanitizedComments);
-        rowToUpdate.set('Status', 'Active'); // Ensure it's active if it was cancelled/others
-        
-        await rowToUpdate.save();
-        return NextResponse.json({ success: true, message: "تم تحديث الحجز بنجاح", bookingId });
-      }
-      return NextResponse.json({ success: false, message: "الحجز غير موجود" }, { status: 404 });
-    }
-
-    // 3. CREATE (With Idempotency)
-    if (action === 'create') {
-      const formattedDate = format(parseISO(date), 'dd/MM/yyyy');
-      
-      // Idempotency: Check if an active booking already exists for this person at this time
-      const existingActive = rows.find(row => 
-        row.get('Phone') === phone && 
-        row.get('Date') === formattedDate && 
-        row.get('Time') === time && 
-        row.get('Status') === 'Active'
-      );
-
-      if (existingActive) {
-        return NextResponse.json({ 
-          success: true, 
-          message: "هذا الموعد محجوز مسبقاً لك!", 
-          bookingId: existingActive.get('BookingID') 
-        });
-      }
-
-      const newBookingId = crypto.randomUUID();
-      const sanitizedComments = DOMPurify.sanitize(comments || "");
-
-      await sheet.addRow({
-        BookingID: newBookingId,
-        CustomerID: customerId,
-        Status: 'Active',
-        Date: formattedDate,
-        Time: time,
-        Service: service,
-        Name: `${firstName} ${lastName}`,
-        Phone: phone,
-        Comments: sanitizedComments,
-      });
-
-      return NextResponse.json({ 
-        success: true, 
-        message: "تم حفظ الحجز بنجاح!", 
-        bookingId: newBookingId 
-      });
-    }
-
-    return NextResponse.json({ success: false, message: "إجراء غير معروف" }, { status: 400 });
-
-  } catch (error) {
-    // Secure error logging (don't expose sensitive data)
-    console.error('[Booking API Error]', {
-      timestamp: new Date().toISOString(),
-      error: error instanceof Error ? error.message : 'Unknown error'
-    });
+    const status = errorMessage === 'Booking not found' ? 404 : 
+                   errorMessage === 'Missing required fields' ? 400 : 500;
 
     return NextResponse.json(
-      { success: false, message: "حدث خطأ أثناء الحجز. الرجاء المحاولة لاحقاً." }, 
-      { status: 500 }
+      { success: false, message: errorMessage || "حدث خطأ غير متوقع" },
+      { status }
     );
   }
 }
 
 // =========================================================
-// 📊 GET ENDPOINT - Check Availability (Optional but Recommended)
+// 📅 GET ENDPOINT
 // =========================================================
 export async function GET(req: Request) {
   try {
@@ -183,45 +222,39 @@ export async function GET(req: Request) {
     const date = searchParams.get('date');
     const excludeId = searchParams.get('excludeId');
 
-    console.log("excludeId", excludeId);
-
     if (!date) {
       return NextResponse.json({ error: 'Date parameter required' }, { status: 400 });
     }
 
-    // Connect to Google Sheets
-    const serviceAccountAuth = new JWT({
-      email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
-      key: process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
-      scopes: ['https://www.googleapis.com/auth/spreadsheets'],
-    });
-
-    const doc = new GoogleSpreadsheet(process.env.GOOGLE_SHEET_ID as string, serviceAccountAuth);
-    await doc.loadInfo();
-    const sheet = doc.sheetsByIndex[0];
-
-    // Get all active bookings for this date
+    const sheet = await getGoogleSheet();
     const rows = await sheet.getRows();
-    const formattedDate = format(parseISO(date), 'dd/MM/yyyy');
     
+    let formattedDate;
+    try {
+        formattedDate = format(parseISO(date), 'dd/MM/yyyy');
+    } catch { 
+        // ✅ Fix: Removed unused 'e' variable
+        return NextResponse.json({ error: 'Invalid Date Format' }, { status: 400 });
+    }
+
+    // ✅ Fix: Explicitly typed 'row' as GoogleSpreadsheetRow in filter/map
     const bookedSlots = rows
-      .filter((row) => {
+      .filter((row: GoogleSpreadsheetRow) => {
         const isSameDate = row.get('Date') === formattedDate;
         const isActive = row.get('Status') === 'Active';
-        const isNotCurrentBooking = !excludeId || row.get('BookingID') !== excludeId;
-        return isSameDate && isActive && isNotCurrentBooking;
+        const isNotExcluded = !excludeId || row.get('BookingID') !== excludeId;
+        return isSameDate && isActive && isNotExcluded;
       })
-      .map((row) => row.get('Time'));
+      .map((row: GoogleSpreadsheetRow) => row.get('Time'));
 
-    return NextResponse.json({ 
-      success: true, 
-      bookedSlots 
-    });
+    return NextResponse.json({ success: true, bookedSlots });
 
-  } catch (error) {
-    console.error('[Availability Check Error]', error);
+  } catch (error: unknown) {
+    // ✅ Fix: Proper error handling without 'any'
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    console.error('[Availability Error]:', errorMessage);
     return NextResponse.json(
-      { success: false, message: 'خطأ في التحقق من الأوقات المتاحة' }, 
+      { success: false, message: "خطأ في استرجاع المواعيد" },
       { status: 500 }
     );
   }
