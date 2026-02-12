@@ -5,8 +5,6 @@ import { NextResponse } from 'next/server';
 // ⚙️ CONFIGURATION
 // =========================================================
 const SCOPES = ['https://www.googleapis.com/auth/spreadsheets'];
-const SHEET_NAME = 'Sheet1'; 
-const RANGE_NAME = `${SHEET_NAME}!A:I`;
 
 // =========================================================
 // 📝 TYPE DEFINITIONS
@@ -47,6 +45,7 @@ const getAuth = () => {
     throw new Error('Missing Google Credentials in environment variables');
   }
 
+  // تنظيف المفتاح عشان يشتغل على Vercel
   const cleanKey = key.replace(/\\n/g, '\n').replace(/^"|"$/g, '');
 
   return new google.auth.JWT({
@@ -61,19 +60,36 @@ const getAuth = () => {
 // =========================================================
 
 /**
- * Fetch all rows with Strict Typing
+ * دالة ذكية تجيب اسم أول ورقة عمل في الشيت أوتوماتيك
+ * عشان لو اسمها Sheet1 أو "ورقة 1" الكود يشتغل في الحالتين
  */
-async function getAllRows(sheets: sheets_v4.Sheets, spreadsheetId: string): Promise<BookingRow[]> {
+async function getFirstSheetTitle(sheets: sheets_v4.Sheets, spreadsheetId: string): Promise<string> {
+  const metadata = await sheets.spreadsheets.get({
+    spreadsheetId,
+  });
+  
+  if (!metadata.data.sheets || metadata.data.sheets.length === 0) {
+    throw new Error('No sheets found in the spreadsheet');
+  }
+
+  // إرجاع عنوان أول ورقة
+  return metadata.data.sheets[0].properties?.title || 'Sheet1';
+}
+
+/**
+ * جلب جميع البيانات مع تحديد الأنواع
+ */
+async function getAllRows(sheets: sheets_v4.Sheets, spreadsheetId: string, rangeName: string): Promise<BookingRow[]> {
   const response = await sheets.spreadsheets.values.get({
     spreadsheetId,
-    range: RANGE_NAME,
+    range: rangeName,
   });
 
   const rows = response.data.values;
   
   if (!rows || rows.length === 0) return [];
 
-  // Skip header and map with explicit types to avoid 'any' error
+  // تحويل الصفوف لكائنات
   return rows.slice(1).map((row: string[], index: number) => ({
     rowIndex: index + 2,
     BookingID: row[0] || '',
@@ -89,7 +105,7 @@ async function getAllRows(sheets: sheets_v4.Sheets, spreadsheetId: string): Prom
 }
 
 /**
- * Sanitize text without external libraries
+ * تنظيف النصوص من الأكواد الخبيثة
  */
 function sanitizeText(text: string | undefined): string {
   if (!text) return "";
@@ -115,6 +131,10 @@ export async function POST(req: Request) {
     const auth = getAuth();
     const sheets = google.sheets({ version: 'v4', auth });
 
+    // 🔥 الخطوة السحرية: جلب اسم الصفحة الحقيقي ديناميكياً
+    const sheetTitle = await getFirstSheetTitle(sheets, spreadsheetId);
+    const rangeName = `${sheetTitle}!A:I`;
+
     // 1. CREATE
     if (action === 'create') {
       const newBookingId = crypto.randomUUID();
@@ -125,7 +145,7 @@ export async function POST(req: Request) {
 
       await sheets.spreadsheets.values.append({
         spreadsheetId,
-        range: RANGE_NAME,
+        range: rangeName,
         valueInputOption: 'USER_ENTERED',
         requestBody: {
           values: [[
@@ -142,28 +162,28 @@ export async function POST(req: Request) {
         },
       });
 
-      return NextResponse.json({ success: true, message: "Booking created successfully", bookingId: newBookingId });
+      return NextResponse.json({ success: true, message: "تم الحجز بنجاح", bookingId: newBookingId });
     }
 
     // 2. UPDATE & CANCEL
     if (action === 'update' || action === 'cancel') {
-      if (!bookingId) return NextResponse.json({ success: false, message: "Booking ID is required" }, { status: 400 });
+      if (!bookingId) return NextResponse.json({ success: false, message: "رقم الحجز مطلوب" }, { status: 400 });
 
-      const allRows = await getAllRows(sheets, spreadsheetId);
+      const allRows = await getAllRows(sheets, spreadsheetId, rangeName);
       const targetRow = allRows.find((r) => r.BookingID === bookingId);
 
       if (!targetRow) {
-        return NextResponse.json({ success: false, message: "Booking not found" }, { status: 404 });
+        return NextResponse.json({ success: false, message: "لم يتم العثور على الحجز" }, { status: 404 });
       }
 
       if (action === 'cancel') {
         await sheets.spreadsheets.values.update({
           spreadsheetId,
-          range: `${SHEET_NAME}!C${targetRow.rowIndex}`,
+          range: `${sheetTitle}!C${targetRow.rowIndex}`, // تحديث الحالة فقط
           valueInputOption: 'USER_ENTERED',
           requestBody: { values: [['Cancelled']] },
         });
-        return NextResponse.json({ success: true, message: "Booking cancelled successfully" });
+        return NextResponse.json({ success: true, message: "تم إلغاء الحجز بنجاح" });
       }
 
       if (action === 'update') {
@@ -173,7 +193,7 @@ export async function POST(req: Request) {
 
         await sheets.spreadsheets.values.update({
           spreadsheetId,
-          range: `${SHEET_NAME}!C${targetRow.rowIndex}:I${targetRow.rowIndex}`,
+          range: `${sheetTitle}!C${targetRow.rowIndex}:I${targetRow.rowIndex}`,
           valueInputOption: 'USER_ENTERED',
           requestBody: {
             values: [[
@@ -187,18 +207,17 @@ export async function POST(req: Request) {
             ]]
           },
         });
-        return NextResponse.json({ success: true, message: "Booking updated successfully" });
+        return NextResponse.json({ success: true, message: "تم تعديل الحجز بنجاح" });
       }
     }
 
-    return NextResponse.json({ success: false, message: "Invalid Action" }, { status: 400 });
+    return NextResponse.json({ success: false, message: "إجراء غير صحيح" }, { status: 400 });
 
   } catch (error) {
-    // Narrowing the error type safely
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
     console.error('[API Error]:', errorMessage);
     return NextResponse.json(
-      { success: false, message: "Server Error", error: errorMessage },
+      { success: false, message: "حدث خطأ في الخادم", error: errorMessage },
       { status: 500 }
     );
   }
@@ -220,7 +239,11 @@ export async function GET(req: Request) {
     const auth = getAuth();
     const sheets = google.sheets({ version: 'v4', auth });
     
-    const allRows = await getAllRows(sheets, spreadsheetId);
+    // جلب اسم الصفحة والداتا
+    const sheetTitle = await getFirstSheetTitle(sheets, spreadsheetId);
+    const rangeName = `${sheetTitle}!A:I`;
+
+    const allRows = await getAllRows(sheets, spreadsheetId, rangeName);
     const searchDate = new Date(date).toLocaleDateString('en-GB');
 
     const bookedSlots = allRows
