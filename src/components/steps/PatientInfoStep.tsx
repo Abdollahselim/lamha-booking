@@ -12,19 +12,25 @@ import { User, Phone, MessageSquare, Loader2 } from "lucide-react";
 import toast from "react-hot-toast";
 
 // =========================================================
-// 🛡️ FORM VALIDATION SCHEMA
+// 🛡️ UPDATED VALIDATION SCHEMA
 // =========================================================
 const patientSchema = z.object({
-  firstName: z.string().min(2, "الاسم الأول يجب أن يكون حرفين على الأقل"),
-  lastName: z.string().min(2, "اسم العائلة يجب أن يكون حرفين على الأقل"),
+  // 1. First Name: Allow Arabic/English letters only, no numbers
+  firstName: z.string()
+    .min(2, "الاسم الأول يجب أن يكون حرفين على الأقل")
+    .regex(/^[\u0621-\u064Aa-zA-Z\s]+$/, "الاسم يجب أن يحتوي على حروف فقط (بدون أرقام أو رموز)"),
+
+  // 2. Last Name: Allow Arabic/English letters only, no numbers
+  lastName: z.string()
+    .min(2, "اسم العائلة يجب أن يكون حرفين على الأقل")
+    .regex(/^[\u0621-\u064Aa-zA-Z\s]+$/, "الاسم يجب أن يحتوي على حروف فقط (بدون أرقام أو رموز)"),
   
-  // Saudi Phone Validation
+  // 3. Phone: Strict Saudi Validation
   phone: z.string()
     .min(9, "رقم الجوال قصير جداً")
     .max(10, "رقم الجوال طويل جداً")
     .regex(/^(05|5)\d{8}$/, "رقم غير صحيح. مثال: 0501234567")
     .transform(val => {
-      // Auto-add '0' if missing
       if (val.length === 9 && val.startsWith('5')) {
         return '0' + val;
       }
@@ -36,7 +42,6 @@ const patientSchema = z.object({
   
   comments: z.string().optional(),
   
-  // Terms Checkbox
   terms: z.boolean().refine((val) => val === true, {
     message: "يجب الموافقة على الشروط والأحكام للمتابعة",
   }),

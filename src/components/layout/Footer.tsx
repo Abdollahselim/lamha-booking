@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import React from "react";
 import Image from "next/image";
 import { Smartphone, MessageCircle, Instagram } from "lucide-react";
@@ -8,11 +9,11 @@ export default function Footer() {
   const currentYear = 2026;
 
   const links = [
-    { label: "المدونة", href: "#" },
-    { label: "من نحن", href: "#" },
-    { label: "الشحن والتوصيل", href: "#" },
-    { label: "سياسة الاستبدال والإسترجاع", href: "#" },
-    { label: "تأمين ملاذ", href: "#" },
+    { label: "المدونة", href: "https://lamhaoptics.com/blog" },
+    { label: "من نحن", href: "https://lamhaoptics.com/%D9%85%D9%86-%D9%86%D8%AD%D9%86/page-1452466801" },
+    { label: "الشحن والتوصيل", href: "https://lamhaoptics.com/%D8%A7%D9%84%D8%B4%D8%AD%D9%86-%D9%88%D8%A7%D9%84%D8%AA%D9%88%D8%B5%D9%8A%D9%84/page-1277251452" },
+    { label: "سياسة الاستبدال والإسترجاع", href: "http://localhost:3000/privacy" },
+    { label: "تأمين ملاذ", href: "http://localhost:3000/terms" },
   ];
 
   return (
@@ -20,6 +21,7 @@ export default function Footer() {
       <div className="max-w-7xl mx-auto flex flex-col items-center">
         {/* Centered Logo */}
         <div className="mb-4 flex justify-center">
+          <Link href="https://lamhaoptics.com">
           <Image
             src="/images/logo.png"
             alt="نظارات لمحة"
@@ -27,6 +29,7 @@ export default function Footer() {
             height={60}
             className="object-contain"
           />
+          </Link>
         </div>
 
         {/* Description */}
@@ -41,14 +44,18 @@ export default function Footer() {
             <span className="flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 shadow-sm">
               <Smartphone size={18} />
             </span>
-            <span className="text-sm font-medium text-slate-700" dir="ltr">+966539277769</span>
+            <a href="tel:+966539277769">
+            <span className="text-sm font-medium text-slate-700 font-mono" dir="ltr">+966539277769</span>
+            </a>
           </div>
           {/* WhatsApp */}
           <div className="flex items-center gap-3">
              <span className="flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 shadow-sm">
               <MessageCircle size={18} />
             </span>
+            <a href="https://wa.me/966539277769">
             <span className="text-sm font-medium text-slate-700 font-mono" dir="ltr">+966539277769</span>
+            </a>
           </div>
         </div>
 
@@ -57,15 +64,15 @@ export default function Footer() {
           <div className="flex flex-wrap items-center justify-center gap-2 md:gap-4">
             {/* Social Icons group (Right side of the block in RTL) */}
             <div className="flex items-center gap-2">
-              <a href="#" className="flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-400 hover:border-[#4C90A3] transition-colors">
+              <a href="https://www.instagram.com/Lamhaoptics" className="flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-400 hover:border-[#4C90A3] transition-colors">
                 <Instagram size={18} strokeWidth={1.5} />
               </a>
-              <a href="#" className="flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-400 hover:border-[#4C90A3] transition-colors">
+              <a href="https://x.com/Lamhaoptics" className="flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-400 hover:border-[#4C90A3] transition-colors">
                 <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
                   <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.25 2.25h6.963l4.689 6.138z" />
                 </svg>
               </a>
-              <a href="#" className="flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-400 hover:border-[#4C90A3] transition-colors">
+              <a href="https://www.tiktok.com/@lamhaoptics" className="flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-400 hover:border-[#4C90A3] transition-colors">
                 <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M9 12a4 4 0 1 0 4 4V4a5 5 0 0 0 5 5" />
                 </svg>

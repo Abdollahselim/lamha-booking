@@ -9,7 +9,9 @@ import { useSyncExternalStore } from "react";
 const emptySubscribe = () => () => {};
 
 /**
- * Custom hook to detect if the component has hydrated (mounted on the client)
+ * Custom hook to detect if the component has hydrated (mounted on the client).
+ * Replaces the traditional useEffect approach to avoid linting warnings about cascading renders.
+ * @returns {boolean} true if mounted on client, false if on server
  */
 export function useHydration() {
   return useSyncExternalStore(

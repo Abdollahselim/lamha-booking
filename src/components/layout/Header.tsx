@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Link from "next/link";
 import Image from 'next/image';
 import { Menu, Search, User, ShoppingBag, X } from 'lucide-react';
 
@@ -47,14 +48,16 @@ export function Header() {
 
             {/* Logo */}
             <div className="flex items-center gap-3">
+              <Link href="https://lamhaoptics.com">
               <Image
                 src="/images/logo.png"
                 alt="Lamha Optics"
                 width={170}
-                height={170}
-                priority
+                height={150}
+                priority={true}
                 className="object-contain"
               />
+              </Link>
             </div>
 
             {/* Right Actions */}
@@ -77,27 +80,29 @@ export function Header() {
                 <Search size={20} className="text-gray-400" />
               </button>
 
-              {/* User Account */}
-              <button 
-                className="p-2 hover:bg-gray-100 rounded-full transition-colors"
-                aria-label="حسابي"
-              >
-                <User size={24} className="text-[#3A5B63]" strokeWidth={1.5} />
-              </button>
+              {/* User Account Link */}
+            <Link 
+              href="https://lamhaoptics.com/login"
+              className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+              aria-label="حسابي"
+            >
+              <User size={24} className="text-[#3A5B63]" strokeWidth={1.5} />
+            </Link>
 
-              {/* Shopping Bag */}
-              <button 
-                className="p-2 hover:bg-gray-100 rounded-full transition-colors relative"
-                aria-label="السلة"
+            {/* Shopping Bag Link */}
+            <Link 
+              href="https://lamhaoptics.com/cart"
+              className="p-2 hover:bg-gray-100 rounded-full transition-colors relative block"
+              aria-label="السلة"
+            >
+              <ShoppingBag size={24} className="text-[#3A5B63]" strokeWidth={1.5} />
+              <span 
+                className="absolute top-0 right-0 bg-[#FD6F6D] text-white text-xs w-[18px] h-[18px] rounded-full flex items-center justify-center font-bold border-2 border-white"
+                style={{ fontSize: '10px' }}
               >
-                <ShoppingBag size={24} className="text-[#3A5B63]" strokeWidth={1.5} />
-                <span 
-                  className="absolute top-0 right-0 bg-[#FD6F6D] text-white text-xs w-[18px] h-[18px] rounded-full flex items-center justify-center font-bold border-2 border-white"
-                  style={{ fontSize: '10px' }}
-                >
-                  0
-                </span>
-              </button>
+                0
+              </span>
+            </Link>
             </div>
 
           </div>
@@ -131,7 +136,7 @@ export function Header() {
                 {navLinks.slice(0, 4).map((link, index) => (
                   <li key={index}>
                     <a
-                      href="#"
+                      href="https://lamhaoptics.com/%D9%86%D8%B8%D8%A7%D8%B1%D8%A7%D8%AA-%D8%B4%D9%85%D8%B3%D9%8A%D8%A9/c1394165064"
                       onClick={() => setIsSidebarOpen(false)}
                       className="block py-3 text-gray-800 font-medium border-b border-gray-100 hover:text-[#5DABB8] transition-colors"
                     >
