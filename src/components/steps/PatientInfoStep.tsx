@@ -292,7 +292,7 @@ export function PatientInfoStep() {
           <motion.button
             type="submit"
             disabled={isSubmitting}
-            className="flex-[2] py-3.5 px-4 rounded-xl bg-[#349998] text-white text-lg font-bold hover:bg-[#2c8180] shadow-lg shadow-teal-50 transition-all active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            className="flex-2 py-3.5 px-4 rounded-xl bg-[#349998] text-white text-lg font-bold hover:bg-[#2c8180] shadow-lg shadow-teal-50 transition-all active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
           >

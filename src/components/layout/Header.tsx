@@ -144,16 +144,6 @@ export function Header() {
                     </a>
                   </li>
                 ))}
-                <li>
-                  <a
-                    href="#"
-                    onClick={() => setIsSidebarOpen(false)}
-                    className="block py-3 text-gray-800 font-medium border-b border-gray-100 hover:text-[#5DABB8] transition-colors"
-                    style={{ fontFamily: 'Cairo' }}
-                  >
-                    حسابي
-                  </a>
-                </li>
               </ul>
             </nav>
           </aside>

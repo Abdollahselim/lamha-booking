@@ -17,6 +17,9 @@ const config: Config = {
         sans: ["'Noto Sans Arabic'", 'Almarai', 'Outfit', 'sans-serif'],
         mono: ["'Noto Sans Arabic'", 'Almarai', 'Outfit', 'sans-serif'],
       },
+      flex: {
+        '2': '2 2 0%', // ده بيعرف كلاس جديد اسمه flex-2
+      },
     },
   },
   plugins: [],

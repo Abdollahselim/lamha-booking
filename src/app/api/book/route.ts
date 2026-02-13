@@ -2,12 +2,12 @@ import { google, sheets_v4 } from 'googleapis';
 import { NextResponse } from 'next/server';
 
 // =========================================================
-// ⚙️ CONFIGURATION
+// CONFIGURATION
 // =========================================================
 const SCOPES = ['https://www.googleapis.com/auth/spreadsheets'];
 
 // =========================================================
-// 📝 TYPE DEFINITIONS
+// TYPE DEFINITIONS
 // =========================================================
 interface BookingRequest {
   action: 'create' | 'update' | 'cancel';
@@ -35,14 +35,14 @@ interface BookingRow {
 }
 
 // =========================================================
-// 🔐 AUTH HELPER
+// AUTH HELPER
 // =========================================================
 const getAuth = () => {
   const email = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
   const key = process.env.GOOGLE_PRIVATE_KEY;
 
   if (!email || !key) {
-    throw new Error('Missing Google Credentials in environment variables');
+    throw new Error('Missing Google Credentials');
   }
 
   // تنظيف المفتاح عشان يشتغل على Vercel
@@ -56,7 +56,7 @@ const getAuth = () => {
 };
 
 // =========================================================
-// 🛠️ HELPER FUNCTIONS
+// HELPER FUNCTIONS
 // =========================================================
 
 /**
@@ -67,13 +67,9 @@ async function getFirstSheetTitle(sheets: sheets_v4.Sheets, spreadsheetId: strin
   const metadata = await sheets.spreadsheets.get({
     spreadsheetId,
   });
-  
-  if (!metadata.data.sheets || metadata.data.sheets.length === 0) {
-    throw new Error('No sheets found in the spreadsheet');
-  }
 
   // إرجاع عنوان أول ورقة
-  return metadata.data.sheets[0].properties?.title || 'Sheet1';
+  return metadata.data.sheets?.[0].properties?.title || 'Sheet1';
 }
 
 /**
@@ -86,7 +82,6 @@ async function getAllRows(sheets: sheets_v4.Sheets, spreadsheetId: string, range
   });
 
   const rows = response.data.values;
-  
   if (!rows || rows.length === 0) return [];
 
   // تحويل الصفوف لكائنات
@@ -116,9 +111,18 @@ function sanitizeText(text: string | undefined): string {
     .replace(/'/g, "&#039;")
     .trim();
 }
+//  تنسيق التاريخ (حل مشكلة التاريخ بيسمع غلط)
+function formatDateString(dateStr: string | undefined): string {
+  if (!dateStr) return '';
+  const parts = dateStr.split('-'); 
+  if (parts.length === 3) {
+    return `${parts[2]}/${parts[1]}/${parts[0]}`;
+  }
+  return dateStr;
+}
 
 // =========================================================
-// 🌐 POST ENDPOINT
+// POST ENDPOINT
 // =========================================================
 export async function POST(req: Request) {
   try {
@@ -135,13 +139,16 @@ export async function POST(req: Request) {
     const sheetTitle = await getFirstSheetTitle(sheets, spreadsheetId);
     const rangeName = `${sheetTitle}!A:I`;
 
+    // ---------------------------
     // 1. CREATE
+    // ---------------------------
     if (action === 'create') {
       const newBookingId = crypto.randomUUID();
       const rawPhone = phone || '000000000';
       const customerId = `CID-${rawPhone.replace(/\D/g, '').slice(-9)}`;
-      const formattedDate = date ? new Date(date).toLocaleDateString('en-GB') : '';
+
       const sanitizedComments = sanitizeText(comments);
+      const finalDate = formatDateString(date);
 
       await sheets.spreadsheets.values.append({
         spreadsheetId,
@@ -149,23 +156,24 @@ export async function POST(req: Request) {
         valueInputOption: 'USER_ENTERED',
         requestBody: {
           values: [[
-            newBookingId,
-            customerId,
-            'Active',
-            formattedDate,
-            time,
-            service,
-            `${firstName} ${lastName}`,
-            phone,
-            sanitizedComments
+            newBookingId,                   // A: BookingID
+            customerId,                     // B: CustomerID
+            'Active',                       // C: Status
+            finalDate,                      // D: Date
+            time,                           // E: Time
+            service,                        // F: Service
+            `${firstName} ${lastName}`,     // G: Name
+            phone,                          // H: Phone
+            sanitizedComments               // I: Comments
           ]],
         },
       });
 
       return NextResponse.json({ success: true, message: "تم الحجز بنجاح", bookingId: newBookingId });
     }
-
+    // -----------------------------------------------------
     // 2. UPDATE & CANCEL
+    // -----------------------------------------------------
     if (action === 'update' || action === 'cancel') {
       if (!bookingId) return NextResponse.json({ success: false, message: "رقم الحجز مطلوب" }, { status: 400 });
 
@@ -187,7 +195,7 @@ export async function POST(req: Request) {
       }
 
       if (action === 'update') {
-        const formattedDate = date ? new Date(date).toLocaleDateString('en-GB') : targetRow.Date;
+        const finalDate = date ? formatDateString(date) : targetRow.Date;
         const newName = (firstName && lastName) ? `${firstName} ${lastName}` : targetRow.Name;
         const sanitizedComments = sanitizeText(comments);
 
@@ -197,13 +205,13 @@ export async function POST(req: Request) {
           valueInputOption: 'USER_ENTERED',
           requestBody: {
             values: [[
-              'Active',
-              formattedDate,
-              time || targetRow.Time,
-              service || targetRow.Service,
-              newName,
-              phone || targetRow.Phone,
-              sanitizedComments || targetRow.Comments
+              'Active',                                // C
+              finalDate,                               // D
+              time || targetRow.Time,                  // E
+              service || targetRow.Service,            // F
+              newName,                                 // G
+              phone || targetRow.Phone,                // H
+              sanitizedComments || targetRow.Comments  // I
             ]]
           },
         });
@@ -224,7 +232,7 @@ export async function POST(req: Request) {
 }
 
 // =========================================================
-// 📅 GET ENDPOINT
+// GET ENDPOINT
 // =========================================================
 export async function GET(req: Request) {
   try {
