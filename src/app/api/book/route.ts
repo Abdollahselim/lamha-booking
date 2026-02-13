@@ -15,7 +15,7 @@ interface BookingRequest {
   firstName?: string;
   lastName?: string;
   phone?: string;
-  date?: string;
+  date?: string; // Expecting ISO string or YYYY-MM-DD
   time?: string;
   service?: string;
   comments?: string;
@@ -37,15 +37,19 @@ interface BookingRow {
 // =========================================================
 // AUTH HELPER
 // =========================================================
+/**
+ * Authenticate with Google Sheets API using Service Account.
+ * Handles newline characters in private key for Vercel deployment.
+ */
 const getAuth = () => {
   const email = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
   const key = process.env.GOOGLE_PRIVATE_KEY;
 
   if (!email || !key) {
-    throw new Error('Missing Google Credentials');
+    throw new Error('Missing Google Credentials in environment variables');
   }
 
-  // تنظيف المفتاح عشان يشتغل على Vercel
+  // Clean the key: remove extra quotes and properly format newlines
   const cleanKey = key.replace(/\\n/g, '\n').replace(/^"|"$/g, '');
 
   return new google.auth.JWT({
@@ -60,20 +64,19 @@ const getAuth = () => {
 // =========================================================
 
 /**
- * دالة ذكية تجيب اسم أول ورقة عمل في الشيت أوتوماتيك
- * عشان لو اسمها Sheet1 أو "ورقة 1" الكود يشتغل في الحالتين
+ * Dynamically fetch the title of the first sheet to avoid "Range not found" errors.
  */
 async function getFirstSheetTitle(sheets: sheets_v4.Sheets, spreadsheetId: string): Promise<string> {
-  const metadata = await sheets.spreadsheets.get({
-    spreadsheetId,
-  });
-
-  // إرجاع عنوان أول ورقة
-  return metadata.data.sheets?.[0].properties?.title || 'Sheet1';
+  const metadata = await sheets.spreadsheets.get({ spreadsheetId });
+  if (!metadata.data.sheets || metadata.data.sheets.length === 0) {
+    throw new Error('No sheets found in the spreadsheet');
+  }
+  return metadata.data.sheets[0].properties?.title || 'Sheet1';
 }
 
 /**
- * جلب جميع البيانات مع تحديد الأنواع
+ * Fetch all rows from the spreadsheet and map them to typed objects.
+ * Mapping follows the column order: A: BookingID -> I: Comments
  */
 async function getAllRows(sheets: sheets_v4.Sheets, spreadsheetId: string, rangeName: string): Promise<BookingRow[]> {
   const response = await sheets.spreadsheets.values.get({
@@ -84,9 +87,9 @@ async function getAllRows(sheets: sheets_v4.Sheets, spreadsheetId: string, range
   const rows = response.data.values;
   if (!rows || rows.length === 0) return [];
 
-  // تحويل الصفوف لكائنات
+  // Map array rows to BookingRow objects, skipping the header row
   return rows.slice(1).map((row: string[], index: number) => ({
-    rowIndex: index + 2,
+    rowIndex: index + 2, // 1-based index + header row
     BookingID: row[0] || '',
     CustomerID: row[1] || '',
     Status: row[2] || '',
@@ -100,7 +103,7 @@ async function getAllRows(sheets: sheets_v4.Sheets, spreadsheetId: string, range
 }
 
 /**
- * تنظيف النصوص من الأكواد الخبيثة
+ * Sanitize text to prevent basic injection attacks.
  */
 function sanitizeText(text: string | undefined): string {
   if (!text) return "";
@@ -111,18 +114,30 @@ function sanitizeText(text: string | undefined): string {
     .replace(/'/g, "&#039;")
     .trim();
 }
-//  تنسيق التاريخ (حل مشكلة التاريخ بيسمع غلط)
+
+/**
+ * Format date string to DD/MM/YYYY.
+ * Handles ISO strings with time components (e.g., 2026-02-15T22:00:00.000Z).
+ */
 function formatDateString(dateStr: string | undefined): string {
   if (!dateStr) return '';
-  const parts = dateStr.split('-'); 
+  
+  // 1. Remove time component if present (split by 'T')
+  const cleanDate = dateStr.split('T')[0];
+
+  // 2. Parse YYYY-MM-DD
+  const parts = cleanDate.split('-'); 
+  
+  // 3. Reformat to DD/MM/YYYY
   if (parts.length === 3) {
     return `${parts[2]}/${parts[1]}/${parts[0]}`;
   }
-  return dateStr;
+  
+  return cleanDate; // Return original if format is unexpected
 }
 
 // =========================================================
-// POST ENDPOINT
+// POST ENDPOINT (HANDLE ACTIONS)
 // =========================================================
 export async function POST(req: Request) {
   try {
@@ -132,21 +147,24 @@ export async function POST(req: Request) {
 
     if (!spreadsheetId) throw new Error('Missing GOOGLE_SHEET_ID');
 
+    // Initialize Google Sheets API
     const auth = getAuth();
     const sheets = google.sheets({ version: 'v4', auth });
 
-    // 🔥 الخطوة السحرية: جلب اسم الصفحة الحقيقي ديناميكياً
+    // Dynamic Sheet Title & Range (Columns A to I)
     const sheetTitle = await getFirstSheetTitle(sheets, spreadsheetId);
     const rangeName = `${sheetTitle}!A:I`;
 
-    // ---------------------------
-    // 1. CREATE
-    // ---------------------------
+    // -----------------------------------------------------
+    // 1. CREATE ACTION
+    // -----------------------------------------------------
     if (action === 'create') {
       const newBookingId = crypto.randomUUID();
-      const rawPhone = phone || '000000000';
-      const customerId = `CID-${rawPhone.replace(/\D/g, '').slice(-9)}`;
-
+      
+      // Generate CustomerID (CID + last 9 digits of phone)
+      const cleanPhone = phone?.replace(/\D/g, '') || '000';
+      const customerId = `CID-${cleanPhone.slice(-9)}`;
+      
       const sanitizedComments = sanitizeText(comments);
       const finalDate = formatDateString(date);
 
@@ -156,83 +174,93 @@ export async function POST(req: Request) {
         valueInputOption: 'USER_ENTERED',
         requestBody: {
           values: [[
-            newBookingId,                   // A: BookingID
-            customerId,                     // B: CustomerID
-            'Active',                       // C: Status
-            finalDate,                      // D: Date
-            time,                           // E: Time
-            service,                        // F: Service
-            `${firstName} ${lastName}`,     // G: Name
-            phone,                          // H: Phone
-            sanitizedComments               // I: Comments
+            newBookingId,                // A: BookingID
+            customerId,                  // B: CustomerID
+            'Active',                    // C: Status
+            finalDate,                   // D: Date
+            time,                        // E: Time
+            service,                     // F: Service
+            `${firstName} ${lastName}`,  // G: Name
+            phone,                       // H: Phone
+            sanitizedComments            // I: Comments
           ]],
         },
       });
 
-      return NextResponse.json({ success: true, message: "تم الحجز بنجاح", bookingId: newBookingId });
+      return NextResponse.json({ success: true, message: "Booking created successfully", bookingId: newBookingId });
     }
+
     // -----------------------------------------------------
-    // 2. UPDATE & CANCEL
+    // 2. UPDATE & CANCEL ACTIONS
     // -----------------------------------------------------
     if (action === 'update' || action === 'cancel') {
-      if (!bookingId) return NextResponse.json({ success: false, message: "رقم الحجز مطلوب" }, { status: 400 });
+      if (!bookingId) return NextResponse.json({ success: false, message: "Booking ID is required" }, { status: 400 });
 
+      // Fetch all rows to find the target booking
       const allRows = await getAllRows(sheets, spreadsheetId, rangeName);
       const targetRow = allRows.find((r) => r.BookingID === bookingId);
 
       if (!targetRow) {
-        return NextResponse.json({ success: false, message: "لم يتم العثور على الحجز" }, { status: 404 });
+        return NextResponse.json({ success: false, message: "Booking not found" }, { status: 404 });
       }
 
+      // Handle Cancel
       if (action === 'cancel') {
+        // Update only column C (Status)
         await sheets.spreadsheets.values.update({
           spreadsheetId,
-          range: `${sheetTitle}!C${targetRow.rowIndex}`, // تحديث الحالة فقط
+          range: `${sheetTitle}!C${targetRow.rowIndex}`,
           valueInputOption: 'USER_ENTERED',
           requestBody: { values: [['Cancelled']] },
         });
-        return NextResponse.json({ success: true, message: "تم إلغاء الحجز بنجاح" });
+        return NextResponse.json({ success: true, message: "Booking cancelled successfully" });
       }
 
+      // Handle Update
       if (action === 'update') {
+        // Use new date if provided, otherwise keep existing
         const finalDate = date ? formatDateString(date) : targetRow.Date;
         const newName = (firstName && lastName) ? `${firstName} ${lastName}` : targetRow.Name;
         const sanitizedComments = sanitizeText(comments);
 
+        // Update columns C through I (Status, Date, Time, Service, Name, Phone, Comments)
+        // BookingID (A) and CustomerID (B) remain unchanged
         await sheets.spreadsheets.values.update({
           spreadsheetId,
           range: `${sheetTitle}!C${targetRow.rowIndex}:I${targetRow.rowIndex}`,
           valueInputOption: 'USER_ENTERED',
           requestBody: {
             values: [[
-              'Active',                                // C
-              finalDate,                               // D
-              time || targetRow.Time,                  // E
-              service || targetRow.Service,            // F
-              newName,                                 // G
-              phone || targetRow.Phone,                // H
-              sanitizedComments || targetRow.Comments  // I
+              'Active',
+              finalDate,
+              time || targetRow.Time,
+              service || targetRow.Service,
+              newName,
+              phone || targetRow.Phone,
+              sanitizedComments || targetRow.Comments
             ]]
           },
         });
-        return NextResponse.json({ success: true, message: "تم تعديل الحجز بنجاح" });
+        return NextResponse.json({ success: true, message: "Booking updated successfully" });
       }
     }
 
-    return NextResponse.json({ success: false, message: "إجراء غير صحيح" }, { status: 400 });
+    return NextResponse.json({ success: false, message: "Invalid Action" }, { status: 400 });
 
   } catch (error) {
+    // Secure error logging (log full error on server, send generic message to client)
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
     console.error('[API Error]:', errorMessage);
+    
     return NextResponse.json(
-      { success: false, message: "حدث خطأ في الخادم", error: errorMessage },
+      { success: false, message: "Internal Server Error", error: process.env.NODE_ENV === 'development' ? errorMessage : undefined },
       { status: 500 }
     );
   }
 }
 
 // =========================================================
-// GET ENDPOINT
+// GET ENDPOINT (CHECK AVAILABILITY)
 // =========================================================
 export async function GET(req: Request) {
   try {
@@ -247,13 +275,16 @@ export async function GET(req: Request) {
     const auth = getAuth();
     const sheets = google.sheets({ version: 'v4', auth });
     
-    // جلب اسم الصفحة والداتا
+    // Dynamic Sheet Title & Range
     const sheetTitle = await getFirstSheetTitle(sheets, spreadsheetId);
     const rangeName = `${sheetTitle}!A:I`;
 
     const allRows = await getAllRows(sheets, spreadsheetId, rangeName);
-    const searchDate = new Date(date).toLocaleDateString('en-GB');
+    
+    // Format search date to match sheet format (DD/MM/YYYY)
+    const searchDate = formatDateString(date);
 
+    // Filter active slots for the requested date
     const bookedSlots = allRows
       .filter((r) => r.Date === searchDate && r.Status === 'Active')
       .map((r) => r.Time);
