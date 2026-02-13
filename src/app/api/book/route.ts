@@ -122,18 +122,26 @@ function sanitizeText(text: string | undefined): string {
 function formatDateString(dateStr: string | undefined): string {
   if (!dateStr) return '';
   
-  // 1. Remove time component if present (split by 'T')
-  const cleanDate = dateStr.split('T')[0];
+  try {
+    // 1. Create a Date object from the input string
+    const dateObj = new Date(dateStr);
+    
+    // 2. Check if date is valid
+    if (isNaN(dateObj.getTime())) return dateStr;
 
-  // 2. Parse YYYY-MM-DD
-  const parts = cleanDate.split('-'); 
-  
-  // 3. Reformat to DD/MM/YYYY
-  if (parts.length === 3) {
-    return `${parts[2]}/${parts[1]}/${parts[0]}`;
+    // 3. Format explicitly to 'Asia/Riyadh' timezone
+    // 'en-GB' locale ensures DD/MM/YYYY format
+    return new Intl.DateTimeFormat('en-GB', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      timeZone: 'Asia/Riyadh' // This forces the correct day
+    }).format(dateObj);
+
+  } catch {
+    // Fallback: simple split if Intl fails
+    return dateStr.split('T')[0];
   }
-  
-  return cleanDate; // Return original if format is unexpected
 }
 
 // =========================================================
