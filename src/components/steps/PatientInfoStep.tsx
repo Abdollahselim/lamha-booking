@@ -12,7 +12,7 @@ import { User, Phone, MessageSquare, Loader2 } from "lucide-react";
 import toast from "react-hot-toast";
 
 // =========================================================
-// 🛡️ UPDATED VALIDATION SCHEMA
+// VALIDATION SCHEMA
 // =========================================================
 const patientSchema = z.object({
   // 1. First Name: Allow Arabic/English letters only, no numbers
@@ -50,7 +50,7 @@ const patientSchema = z.object({
 type PatientFormData = z.infer<typeof patientSchema>;
 
 // =========================================================
-// 📝 PATIENT INFO STEP COMPONENT
+// PATIENT INFO STEP COMPONENT
 // =========================================================
 export function PatientInfoStep() {
   const { user, date, time, service, bookingId, setUserDetails, setBookingId, nextStep, prevStep } = useBookingStore();
@@ -86,7 +86,7 @@ export function PatientInfoStep() {
   }, [user, reset]);
 
   // =========================================================
-  // 🚀 SUBMIT HANDLER (CREATE OR UPDATE)
+  // SUBMIT HANDLER (CREATE OR UPDATE)
   // =========================================================
   const onSubmit = async (data: PatientFormData) => {
     setIsSubmitting(true);
@@ -94,10 +94,9 @@ export function PatientInfoStep() {
 
     try {
       // 1. Update Local Store
-      setUserDetails({ 
-        ...data, 
-        email: "", 
-        comments: data.comments || "" 
+      setUserDetails({
+        ...data,
+        comments: data.comments || ""
       } as UserDetails);
 
       // 2. Determine Action: UPDATE vs CREATE

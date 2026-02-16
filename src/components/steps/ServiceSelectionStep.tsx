@@ -1,13 +1,13 @@
 "use client";
 
-import React, { useState } from "react";
+import { useState } from "react";
 import Image from "next/image";
 import { motion } from "framer-motion";
 import { SplitLayout } from "@/components/layout/SplitLayout";
 import { useBookingStore } from "@/store/bookingStore";
 
 // =========================================================
-// 🎨 ANIMATION VARIANTS
+// ANIMATION VARIANTS
 // =========================================================
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -30,7 +30,7 @@ const itemVariants = {
 };
 
 // =========================================================
-// 📍 COMPONENT: SERVICE SELECTION
+// COMPONENT: SERVICE SELECTION
 // =========================================================
 export function ServiceSelectionStep() {
   // 1. Store Hooks
@@ -47,7 +47,7 @@ export function ServiceSelectionStep() {
   const googleMapsUrl = "https://maps.app.goo.gl/ZbjwC5RWZnhMgcbCA";
 
   // =========================================================
-  // 👆 HANDLERS
+  // HANDLERS
   // =========================================================
   const handleBookingStart = () => {
     setBookingId(""); // Clear any old ID to start fresh

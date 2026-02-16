@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import type { BookingState, UserDetails, Service, TimeSlot } from "@/lib/types";
+import type { BookingState, UserDetails, Service } from "@/lib/types";
 import { BookingStep } from "@/lib/types";
 
 /**
@@ -11,7 +11,7 @@ interface BookingStoreState extends BookingState {
   setStep: (step: number) => void;
   setService: (service: Service) => void;
   setDate: (date: Date | null) => void;
-  setTime: (time: TimeSlot | null) => void;
+  setTime: (time: string | null) => void;
   setUserDetails: (user: UserDetails) => void;
   reset: () => void;
   nextStep: () => void;
@@ -62,7 +62,7 @@ export const useBookingStore = create<BookingStoreState>()(
         set({ date });
       },
 
-      setTime: (time: TimeSlot | null) => {
+      setTime: (time: string | null) => {
         set({ time });
       },
 

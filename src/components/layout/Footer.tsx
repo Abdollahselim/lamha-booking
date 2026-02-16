@@ -1,12 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import React from "react";
 import Image from "next/image";
 import { Smartphone, MessageCircle, Instagram } from "lucide-react";
 
 export default function Footer() {
-  const currentYear = 2026;
+  const currentYear = new Date().getFullYear();
 
   const links = [
     { label: "المدونة", href: "https://lamhaoptics.com/blog" },
@@ -44,7 +43,7 @@ export default function Footer() {
             <span className="flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 shadow-sm">
               <Smartphone size={18} />
             </span>
-            <a href="tel:+966539277769">
+            <a href="tel:+966539277769" rel="noopener noreferrer">
             <span className="text-sm font-medium text-slate-700 font-mono" dir="ltr">+966539277769</span>
             </a>
           </div>
@@ -53,7 +52,7 @@ export default function Footer() {
              <span className="flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 shadow-sm">
               <MessageCircle size={18} />
             </span>
-            <a href="https://wa.me/966539277769">
+            <a href="https://wa.me/966539277769" target="_blank" rel="noopener noreferrer">
             <span className="text-sm font-medium text-slate-700 font-mono" dir="ltr">+966539277769</span>
             </a>
           </div>
@@ -64,15 +63,15 @@ export default function Footer() {
           <div className="flex flex-wrap items-center justify-center gap-2 md:gap-4">
             {/* Social Icons group (Right side of the block in RTL) */}
             <div className="flex items-center gap-2">
-              <a href="https://www.instagram.com/Lamhaoptics" className="flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-400 hover:border-[#4C90A3] transition-colors">
+              <a href="https://www.instagram.com/Lamhaoptics" target="_blank" rel="noopener noreferrer" className="flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-400 hover:border-[#4C90A3] transition-colors">
                 <Instagram size={18} strokeWidth={1.5} />
               </a>
-              <a href="https://x.com/Lamhaoptics" className="flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-400 hover:border-[#4C90A3] transition-colors">
+              <a href="https://x.com/Lamhaoptics" target="_blank" rel="noopener noreferrer" className="flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-400 hover:border-[#4C90A3] transition-colors">
                 <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
                   <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.25 2.25h6.963l4.689 6.138z" />
                 </svg>
               </a>
-              <a href="https://www.tiktok.com/@lamhaoptics" className="flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-400 hover:border-[#4C90A3] transition-colors">
+              <a href="https://www.tiktok.com/@lamhaoptics" target="_blank" rel="noopener noreferrer" className="flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-400 hover:border-[#4C90A3] transition-colors">
                 <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M9 12a4 4 0 1 0 4 4V4a5 5 0 0 0 5 5" />
                 </svg>

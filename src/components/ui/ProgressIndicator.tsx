@@ -3,7 +3,6 @@
 import React from "react";
 import { useBookingStore } from "@/store/bookingStore";
 import { motion } from "framer-motion";
-import { X } from "lucide-react";
 
 type Props = {
   current?: number;

@@ -6,7 +6,7 @@ import { Toaster } from "react-hot-toast";
 import "./globals.css";
 
 // =========================================================
-// 🎨 FONT CONFIGURATION (IBM Plex Sans Arabic)
+// FONT CONFIGURATION (IBM Plex Sans Arabic)
 // =========================================================
 // This optimizes the font loading and prevents layout shift
 const ibmPlexSansArabic = IBM_Plex_Sans_Arabic({ 
@@ -17,21 +17,21 @@ const ibmPlexSansArabic = IBM_Plex_Sans_Arabic({
 });
 
 // =========================================================
-// 🌍 METADATA CONFIGURATION (SEO & SOCIAL)
+// METADATA CONFIGURATION (SEO & SOCIAL)
 // =========================================================
 export const metadata: Metadata = {
   metadataBase: new URL("https://lamha-booking.vercel.app"),
   title: "حجز موعد | نظارات لمحة",
   description: "احجز موعد فحص النظر مجاناً في فروع نظارات لمحة - المتجر الرسمي.",
   
-  // ✅ Icons Configuration
+  // Icons Configuration
   icons: {
     icon: "/images/icon.jpeg",
     shortcut: "/images/icon.jpeg",
     apple: "/images/icon.jpeg",
   },
 
-  // ✅ Open Graph (WhatsApp, Facebook, etc.)
+  // Open Graph (WhatsApp, Facebook, etc.)
   openGraph: {
     title: "حجز موعد | نظارات لمحة",
     description: "احجز موعد فحص النظر مجاناً بأسهل الخطوات.",
@@ -50,7 +50,7 @@ export const metadata: Metadata = {
 };
 
 // =========================================================
-// 📱 VIEWPORT SETTINGS
+// VIEWPORT SETTINGS
 // =========================================================
 export const viewport: Viewport = {
   themeColor: "#ffffff",
@@ -59,7 +59,7 @@ export const viewport: Viewport = {
 };
 
 // =========================================================
-// 🚀 ROOT LAYOUT COMPONENT
+// ROOT LAYOUT COMPONENT
 // =========================================================
 export default function RootLayout({
   children,

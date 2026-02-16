@@ -6,7 +6,7 @@ import { motion, Variants } from "framer-motion";
 import { cn } from "@/lib/utils";
 
 // =========================================================
-// 📝 TYPES
+// TYPES
 // =========================================================
 interface SplitLayoutProps {
   imageSrc: string;
@@ -19,7 +19,7 @@ interface SplitLayoutProps {
 }
 
 // =========================================================
-// 🎨 ANIMATION VARIANTS
+// ANIMATION VARIANTS
 // =========================================================
 const contentVariants: Variants = {
   hidden: { opacity: 0, y: 20 },
@@ -81,7 +81,7 @@ export function SplitLayout({
     >
       
       {/* ------------------------------------------------- */}
-      {/* 🖼️ DESKTOP IMAGE SECTION (LEFT/RIGHT) */}
+      {/* DESKTOP IMAGE SECTION (LEFT/RIGHT) */}
       {/* ------------------------------------------------- */}
       <motion.div
         className="hidden lg:flex w-1/2 bg-slate-50 relative"
@@ -104,7 +104,7 @@ export function SplitLayout({
       </motion.div>
 
       {/* ------------------------------------------------- */}
-      {/* 📝 CONTENT SECTION */}
+      {/* CONTENT SECTION */}
       {/* ------------------------------------------------- */}
       <motion.div
         className="flex w-full flex-col items-center justify-center px-6 py-10 lg:w-1/2 lg:px-10 text-center relative z-10"
@@ -147,7 +147,7 @@ export function SplitLayout({
       </motion.div>
 
       {/* ------------------------------------------------- */}
-      {/* 📱 MOBILE IMAGE BACKGROUND (FALLBACK) */}
+      {/* MOBILE IMAGE BACKGROUND (FALLBACK) */}
       {/* ------------------------------------------------- */}
       <div className="absolute inset-0 -z-10 lg:hidden opacity-[0.03]">
         <Image

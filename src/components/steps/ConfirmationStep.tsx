@@ -10,7 +10,7 @@ import { SplitLayout } from "@/components/layout/SplitLayout";
 import { BookingStep } from "@/lib/types";
 
 // =========================================================
-// ✅ CONFIRMATION STEP (SUCCESS / CANCEL / RESCHEDULE)
+// CONFIRMATION STEP (SUCCESS / CANCEL / RESCHEDULE)
 // =========================================================
 export function ConfirmationStep() {
   // 1. Get Store Data
@@ -34,7 +34,7 @@ export function ConfirmationStep() {
   };
 
   // =========================================================
-  // ⚙️ HANDLER: CANCEL OR RESCHEDULE
+  // HANDLER: CANCEL OR RESCHEDULE
   // =========================================================
   const handleAction = async (actionType: 'reschedule' | 'cancel') => {
     // A. Reschedule Logic (Client Side Only)
@@ -77,7 +77,7 @@ export function ConfirmationStep() {
   };
 
   // =========================================================
-  // 🔴 VIEW 1: CANCELLED STATE
+  // VIEW 1: CANCELLED STATE
   // =========================================================
   if (isCancelled) {
     return (
@@ -102,11 +102,11 @@ export function ConfirmationStep() {
   }
 
   // =========================================================
-  // 🟢 VIEW 2: SUCCESS STATE (DEFAULT)
+  // VIEW 2: SUCCESS STATE (DEFAULT)
   // =========================================================
   return (
     <SplitLayout
-      imageSrc="/images/Step-3.webp"
+      imageSrc="/images/lamha-1.webp"
       title={
         <div className="flex flex-col items-center lg:items-center gap-2 w-full">
           <motion.div 

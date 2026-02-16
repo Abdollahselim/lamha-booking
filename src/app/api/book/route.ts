@@ -112,7 +112,8 @@ function sanitizeText(text: string | undefined): string {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#039;")
-    .trim();
+    .trim()
+    .slice(0, 500); // Enforce maximum length to prevent payload abuse
 }
 
 /**
@@ -167,12 +168,21 @@ export async function POST(req: Request) {
     // 1. CREATE ACTION
     // -----------------------------------------------------
     if (action === 'create') {
+      // Input length validation to prevent payload abuse
+      if ((firstName && firstName.length > 50) || (lastName && lastName.length > 50)) {
+        return NextResponse.json({ success: false, message: 'Name fields must not exceed 50 characters' }, { status: 400 });
+      }
+      if (phone && phone.length > 20) {
+        return NextResponse.json({ success: false, message: 'Phone number must not exceed 20 characters' }, { status: 400 });
+      }
+
       const newBookingId = crypto.randomUUID();
       
       // Generate CustomerID (CID + last 9 digits of phone)
       const cleanPhone = phone?.replace(/\D/g, '') || '000';
       const customerId = `CID-${cleanPhone.slice(-9)}`;
       
+      const sanitizedName = `${sanitizeText(firstName)} ${sanitizeText(lastName)}`;
       const sanitizedComments = sanitizeText(comments);
       const finalDate = formatDateString(date);
 
@@ -188,7 +198,7 @@ export async function POST(req: Request) {
             finalDate,                   // D: Date
             time,                        // E: Time
             service,                     // F: Service
-            `${firstName} ${lastName}`,  // G: Name
+            sanitizedName,               // G: Name (sanitized)
             phone,                       // H: Phone
             sanitizedComments            // I: Comments
           ]],
@@ -274,8 +284,21 @@ export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
     const date = searchParams.get('date');
+    const excludeId = searchParams.get('excludeId');
 
     if (!date) return NextResponse.json({ error: 'Date parameter required' }, { status: 400 });
+
+    // Validate date format (YYYY-MM-DD)
+    const datePattern = /^\d{4}-\d{2}-\d{2}$/;
+    if (!datePattern.test(date)) {
+      return NextResponse.json({ error: 'Invalid date format. Expected YYYY-MM-DD' }, { status: 400 });
+    }
+
+    // Validate excludeId format (UUID) if provided
+    const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (excludeId && !uuidPattern.test(excludeId)) {
+      return NextResponse.json({ error: 'Invalid excludeId format' }, { status: 400 });
+    }
 
     const spreadsheetId = process.env.GOOGLE_SHEET_ID;
     if (!spreadsheetId) throw new Error('Missing GOOGLE_SHEET_ID');
@@ -292,12 +315,18 @@ export async function GET(req: Request) {
     // Format search date to match sheet format (DD/MM/YYYY)
     const searchDate = formatDateString(date);
 
-    // Filter active slots for the requested date
+    // Filter active slots for the requested date.
+    // If excludeId is provided (reschedule flow), exclude the user's own booking
+    // so their current slot remains selectable.
     const bookedSlots = allRows
-      .filter((r) => r.Date === searchDate && r.Status === 'Active')
+      .filter((r) => r.Date === searchDate && r.Status === 'Active' && r.BookingID !== excludeId)
       .map((r) => r.Time);
 
-    return NextResponse.json({ success: true, bookedSlots });
+    // no-store ensures clients always see the latest slot availability
+    return NextResponse.json(
+      { success: true, bookedSlots },
+      { headers: { 'Cache-Control': 'no-store' } }
+    );
 
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";

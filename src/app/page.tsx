@@ -1,7 +1,6 @@
 "use client";
 
-import React from "react";
-import { Loader2 } from "lucide-react"; // ✅ Fixed: Added missing import
+import { Loader2 } from "lucide-react";
 import ProgressIndicator from "@/components/ui/ProgressIndicator";
 import { ServiceSelectionStep } from "@/components/steps/ServiceSelectionStep";
 import { DateTimeStep } from "@/components/steps/DateTimeStep";

@@ -21,7 +21,7 @@ import { cn } from "@/lib/utils";
 import { SplitLayout } from "@/components/layout/SplitLayout";
 
 // =========================================================
-// 📅 DATE TIME SELECTION STEP
+// DATE TIME SELECTION STEP
 // =========================================================
 export function DateTimeStep() {
   const { bookingId, date, time, setDate, setTime, nextStep, prevStep } = useBookingStore();
@@ -36,38 +36,45 @@ export function DateTimeStep() {
   
   const [currentMonth, setCurrentMonth] = useState<Date>(effectiveDate || new Date());
   
+  // Default to today if no date is selected
   useEffect(() => {
     if (!effectiveDate) setDate(new Date());
   }, [effectiveDate, setDate]);
 
   // =========================================================
-  // 🕒 DYNAMIC TIME SLOT GENERATION
+  // DYNAMIC TIME SLOT GENERATION
   // =========================================================
+  // Business rules:
+  //   Friday  -> starts at 4:00 PM (16:00)
+  //   Others  -> starts at 3:00 PM (15:00)
+  //   All days end at 11:30 PM (23:30)
+
+  /** Format an hour and minute into an Arabic 12-hour string (e.g. "5:00 م"). */
+  const formatTime = (h: number, m: number): string => {
+    const d = new Date();
+    d.setHours(h, m, 0);
+    return format(d, "h:mm a", { locale: arSA });
+  };
+
   const availableTimeSlots = useMemo(() => {
     if (!effectiveDate) return [];
 
     const dayOfWeek = getDay(effectiveDate); // 0 = Sunday, 5 = Friday
     const slots: string[] = [];
 
-    // Friday (5) starts at 16:00 (4 PM), Others start at 15:00 (3 PM)
     const startHour = dayOfWeek === 5 ? 16 : 15;
-    const endHour = 23; // 11 PM
+    const endHour = 23;
 
     for (let hour = startHour; hour <= endHour; hour++) {
-      const formatTime = (h: number, m: number) => {
-        const d = new Date();
-        d.setHours(h, m, 0);
-        return format(d, "hh:mm a", { locale: arSA });
-      };
-      slots.push(formatTime(hour, 0));
-      slots.push(formatTime(hour, 30));
+      slots.push(formatTime(hour, 0));  // :00 slot
+      slots.push(formatTime(hour, 30)); // :30 slot
     }
 
     return slots;
   }, [effectiveDate]);
 
   // =========================================================
-  // 🔄 FETCH BOOKED SLOTS
+  // FETCH BOOKED SLOTS
   // =========================================================
   useEffect(() => {
     const fetchBookedSlots = async () => {
@@ -75,7 +82,10 @@ export function DateTimeStep() {
       
       setIsLoadingSlots(true);
       try {
+        // Format date as YYYY-MM-DD for the API query
         const dateString = format(effectiveDate, 'yyyy-MM-dd');
+
+        // When rescheduling, exclude the user's own booking so their slot stays selectable
         const excludeParam = bookingId ? `&excludeId=${bookingId}` : '';
         
         const res = await fetch(`/api/book?date=${dateString}${excludeParam}`);
@@ -98,18 +108,20 @@ export function DateTimeStep() {
   }, [effectiveDate, bookingId]);
 
   // =========================================================
-  // 🗓️ CALENDAR LOGIC
+  // CALENDAR LOGIC
   // =========================================================
   const daysInMonth = eachDayOfInterval({
     start: startOfMonth(currentMonth),
     end: endOfMonth(currentMonth),
   }).filter((day) => {
+    // Show only future days starting from today
     if (isSameMonth(day, new Date())) {
       return !isBefore(day, startOfToday());
     }
     return !isBefore(day, startOfMonth(new Date()));
   });
 
+  // Check if a specific time string is in the booked list
   const isSlotBooked = (checkTime: string) => {
     return bookedSlots.includes(checkTime);
   };
@@ -123,7 +135,7 @@ export function DateTimeStep() {
   };
 
   // =========================================================
-  // 🎨 RENDER UI
+  // RENDER UI
   // =========================================================
   return (
     <SplitLayout
@@ -171,7 +183,7 @@ export function DateTimeStep() {
                     key={idx}
                     onClick={() => {
                       setDate(day);
-                      setTime(null);
+                      setTime(null); // Reset time when date changes
                     }}
                     className={cn(
                       "flex flex-col items-center justify-center min-w-[60px] h-[70px] rounded-2xl border transition-all snap-center",
@@ -215,13 +227,11 @@ export function DateTimeStep() {
                     <button
                       key={slot}
                       disabled={isBooked}
-                      // 👇 الحل السحري: بنقول لـ ESLint "سيب السطر ده، أنا عارف بعمل إيه"
-                      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                      onClick={() => setTime(slot as any)} 
+                      onClick={() => setTime(slot)} 
                       className={cn(
                         "py-2.5 px-2 rounded-xl text-xs font-bold transition-all border",
                         isBooked 
-                          ? "bg-slate-100 text-slate-400 border-transparent cursor-not-allowed decoration-slate-400/50 line-through" 
+                          ? "bg-slate-50 text-slate-300 border-slate-100 cursor-not-allowed decoration-slate-400 line-through opacity-60"
                           : isSelected
                             ? "bg-[#349998] text-white border-[#349998] shadow-md ring-2 ring-teal-100 ring-offset-1"
                             : "bg-white text-slate-700 border-slate-200 hover:border-[#349998] hover:text-[#349998]"
@@ -251,7 +261,6 @@ export function DateTimeStep() {
           <button
             onClick={nextStep}
             disabled={!effectiveDate || !time}
-            // استخدمنا flex-[2_2_0%] بدل flex-[2] عشان الـ Parser يفهمها
             className="flex-[2_2_0%] py-3.5 rounded-xl bg-[#349998] text-white font-bold hover:bg-[#2a7d7c] disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-teal-100 transition-all hover:-translate-y-0.5"
           >
             المتابعة
