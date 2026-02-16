@@ -82,7 +82,7 @@ export function ConfirmationStep() {
   if (isCancelled) {
     return (
       <SplitLayout
-        imageSrc="/images/Step-3.webp"
+        imageSrc="/images/lamha-2.webp"
         title={<span className="text-2xl font-bold text-red-600">تم إلغاء الموعد</span>}
         subtitle="تم إلغاء حجزك بنجاح. نتمنى رؤيتك قريباً."
       >

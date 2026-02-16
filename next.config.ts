@@ -1,24 +1,14 @@
-import type { NextConfig } from "next";
-
-const nextConfig: NextConfig = {
-  reactCompiler: true,
+/** @type {import('next').NextConfig} */
+const nextConfig = {
   images: {
     remotePatterns: [
       {
-        protocol: "https",
-        hostname: "cdn.salla.sa", 
+        protocol: 'https',
+        hostname: 'maps.googleapis.com', // For Google Maps Static API
       },
       {
-        protocol: "https",
-        hostname: "cdn.salla.network", 
-      },
-      {
-        protocol: "https",
-        hostname: "media.wired.com", 
-      },
-      {
-        protocol: "https",
-        hostname: "images.unsplash.com", 
+        protocol: 'https',
+        hostname: 'media.wired.com',     // For the fallback image
       },
     ],
   },

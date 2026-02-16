@@ -162,7 +162,7 @@ export function PatientInfoStep() {
 
   return (
     <SplitLayout
-      imageSrc="/images/download (6).webp"
+      imageSrc="/images/lamha-1.webp"
       title={<span className="text-xl md:text-4xl text-right">تفاصيل الحجز</span>}
       subtitle="أخبرنا قليلاً عن نفسك"
     >
