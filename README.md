@@ -105,4 +105,4 @@ The project is configured for **Vercel**. Push to the connected Git repository a
 
 ## License
 
-Proprietary — Lamha Optics © 2026
+Proprietary — ABdullaH Selim © 2026

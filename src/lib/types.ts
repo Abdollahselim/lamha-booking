@@ -62,6 +62,7 @@ export const AVAILABLE_DAYS = [
   "Thursday",
   "Friday",
   "Saturday",
+  "Sunday",
 ] as const;
 
 export type AvailableDay = (typeof AVAILABLE_DAYS)[number];
