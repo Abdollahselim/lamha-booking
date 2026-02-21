@@ -3,6 +3,7 @@ import { IBM_Plex_Sans_Arabic } from "next/font/google"; // 1. Using the correct
 import { Header } from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import { Toaster } from "react-hot-toast";
+import { GoogleTagManager } from "@next/third-parties/google"; // 2. Official GTM loader
 import "./globals.css";
 
 // =========================================================
@@ -20,7 +21,7 @@ const ibmPlexSansArabic = IBM_Plex_Sans_Arabic({
 // METADATA CONFIGURATION (SEO & SOCIAL)
 // =========================================================
 export const metadata: Metadata = {
-  metadataBase: new URL("https://lamha-booking.vercel.app"),
+  metadataBase: new URL("https://book.lamhaoptics.com"),
   title: "حجز موعد | نظارات لمحة",
   description: "احجز موعد فحص النظر مجاناً في فروع نظارات لمحة - المتجر الرسمي.",
   
@@ -73,11 +74,14 @@ export default function RootLayout({
         className={`${ibmPlexSansArabic.className} antialiased bg-[#F9FAFB] text-[#171717] min-h-screen flex flex-col`}
         suppressHydrationWarning={true}
       >
-        
-        {/* 1. Header */}
+        {/* 1. Google Tag Manager (Official Implementation) */}
+        {/* Your ID from the image: GTM-T8MH6HV */}
+        <GoogleTagManager gtmId="GTM-T8MH6HV" />
+
+        {/* 2. Header */}
         <Header />
 
-        {/* 2. Toast Notifications (Styled for your theme) */}
+        {/* 3. Toast Notifications (Styled for your theme) */}
         <Toaster 
           position="top-center" 
           reverseOrder={false}
@@ -96,12 +100,12 @@ export default function RootLayout({
           }}
         />
 
-        {/* 3. Main Content Wrapper */}
+        {/* 4. Main Content Wrapper */}
         <main className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           {children}
         </main>
 
-        {/* 4. Footer */}
+        {/* 5. Footer */}
         <Footer />
         
       </body>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { useBookingStore } from "@/store/bookingStore";
 import { format } from "date-fns";
@@ -8,6 +8,7 @@ import { arSA } from "date-fns/locale";
 import { MapPin, Calendar as CalendarIcon, Clock, Eye, CheckCircle, CalendarPlus, ExternalLink, XCircle, RefreshCw, Loader2 } from "lucide-react";
 import { SplitLayout } from "@/components/layout/SplitLayout";
 import { BookingStep } from "@/lib/types";
+import { sendGTMEvent } from "@next/third-parties/google"; // 1. Import GTM helper [cite: 9]
 
 // =========================================================
 // CONFIRMATION STEP (SUCCESS / CANCEL / RESCHEDULE)
@@ -19,8 +20,27 @@ export function ConfirmationStep() {
   // 2. Local State
   const [isLoading, setIsLoading] = useState(false);
   const [isCancelled, setIsCancelled] = useState(false);
+  const [hasTracked, setHasTracked] = useState(false); // Prevention of duplicate tracking
 
   const effectiveDate = date ? (typeof date === "string" ? new Date(date) : date) : null;
+
+  // =========================================================
+  // EFFECT: TRACK SUCCESSFUL BOOKING
+  // =========================================================
+  useEffect(() => {
+    // Only track if we have a bookingId and haven't tracked yet [cite: 2, 21, 24]
+    if (bookingId && !isCancelled && !hasTracked) {
+      sendGTMEvent({
+        event: 'booking_complete', // Custom event name for GTM [cite: 23, 40]
+        booking_id: bookingId,      // For deduplication in analytics 
+        service_name: service || 'فحص نظر عام', // [cite: 25]
+        value: 0,                   // Free service [cite: 28]
+        currency: 'SAR',            // [cite: 29]
+      });
+      setHasTracked(true);
+      console.log("✅ GTM Event: booking_complete tracked successfully.");
+    }
+  }, [bookingId, isCancelled, hasTracked, service]);
 
   // Helper: Generate Google Calendar Link
   const getGoogleCalendarLink = () => {
@@ -38,7 +58,6 @@ export function ConfirmationStep() {
   // =========================================================
   const handleAction = async (actionType: 'reschedule' | 'cancel') => {
     // A. Reschedule Logic (Client Side Only)
-    // We just move the user back to Date Step. The update happens upon re-submission.
     if (actionType === 'reschedule') {
       setStep(BookingStep.DATE_TIME);
       return;
@@ -218,7 +237,6 @@ export function ConfirmationStep() {
 
           {/* 2. Cancel / Reschedule Row */}
           <div className="flex gap-4 w-full justify-center">
-            {/* Reschedule Button */}
             <button 
               onClick={() => handleAction('reschedule')}
               disabled={isLoading}
@@ -228,7 +246,6 @@ export function ConfirmationStep() {
               إعادة جدولة
             </button>
 
-            {/* Cancel Button */}
             <button 
               onClick={() => handleAction('cancel')}
               disabled={isLoading}
