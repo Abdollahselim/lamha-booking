@@ -2,7 +2,7 @@
 
 A modern, Arabic-first booking wizard for **Lamha Optics** (نظارات لمحة). Customers can book free eye-exam appointments through a 4-step wizard with real-time slot availability, powered by Google Sheets as the backend.
 
-**Live:** [lamha-booking.vercel.app](https://lamha-booking.vercel.app)
+**Live:** [book.lamhaoptics.com](https://book.lamhaoptics.com/)
 
 ---
 
