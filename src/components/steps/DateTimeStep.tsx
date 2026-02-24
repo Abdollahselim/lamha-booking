@@ -11,8 +11,8 @@ import {
   eachDayOfInterval, 
   isBefore, 
   startOfToday, 
-  isSameMonth, 
-  getDay 
+  isSameMonth
+  // getDay // <--  NORMAL MODE: Uncomment this after Ramadan
 } from "date-fns";
 import { arSA } from "date-fns/locale";
 import { useBookingStore } from "@/store/bookingStore";
@@ -24,10 +24,15 @@ import { SplitLayout } from "@/components/layout/SplitLayout";
 // DATE TIME SELECTION STEP
 // =========================================================
 export function DateTimeStep() {
-  const { bookingId, date, time, setDate, setTime, nextStep, prevStep } = useBookingStore();
+  //  NORMAL MODE: Add `bookingId` back to the destructured object after Ramadan
+  const { date, time, setDate, setTime, nextStep, prevStep } = useBookingStore();
   
-  const [bookedSlots, setBookedSlots] = useState<string[]>([]);
-  const [isLoadingSlots, setIsLoadingSlots] = useState(false);
+  //  NORMAL MODE: Uncomment these two lines after Ramadan
+  // const [bookedSlots, setBookedSlots] = useState<string[]>([]);
+  // const [isLoadingSlots, setIsLoadingSlots] = useState(false);
+
+  //  RAMADAN MODE: Fake loading state (always false) to fix ESLint unused warning
+  const isLoadingSlots = false;
 
   // Memoize effective date
   const effectiveDate = useMemo(() => {
@@ -44,11 +49,6 @@ export function DateTimeStep() {
   // =========================================================
   // DYNAMIC TIME SLOT GENERATION
   // =========================================================
-  // Business rules:
-  //   Friday  -> starts at 4:00 PM (16:00)
-  //   Others  -> starts at 3:00 PM (15:00)
-  //   All days end at 11:30 PM (23:30)
-
   /** Format an hour and minute into an Arabic 12-hour string (e.g. "5:00 م"). */
   const formatTime = (h: number, m: number): string => {
     const d = new Date();
@@ -58,10 +58,43 @@ export function DateTimeStep() {
 
   const availableTimeSlots = useMemo(() => {
     if (!effectiveDate) return [];
-
-    const dayOfWeek = getDay(effectiveDate); // 0 = Sunday, 5 = Friday
     const slots: string[] = [];
 
+    // =========================================================
+    //  RAMADAN HOURS MODE (مواعيد رمضان)
+    // =========================================================
+    // 1️ الشفت الأول: 3:00 م إلى 5:00 م
+    for (let hour = 15; hour <= 17; hour++) {
+      if (hour === 17) {
+         slots.push(formatTime(hour, 0)); // 5:00 م
+      } else {
+         slots.push(formatTime(hour, 0));
+         slots.push(formatTime(hour, 30));
+      }
+    }
+
+    // 2️ الشفت الثاني: 8:30 م إلى 3:00 ص
+    slots.push(formatTime(20, 30)); // 8:30 م
+    for (let hour = 21; hour <= 23; hour++) {
+      slots.push(formatTime(hour, 0));
+      slots.push(formatTime(hour, 30));
+    }
+    // بعد منتصف الليل
+    for (let hour = 0; hour <= 3; hour++) {
+       if (hour === 3) {
+          slots.push(formatTime(hour, 0)); // 3:00 ص
+       } else {
+          slots.push(formatTime(hour, 0));
+          slots.push(formatTime(hour, 30));
+       }
+    }
+    return slots;
+
+    // =========================================================
+    //  NORMAL HOURS MODE (COMMENTED OUT FOR RAMADAN)
+    // =========================================================
+    /*
+    const dayOfWeek = getDay(effectiveDate); // 0 = Sunday, 5 = Friday
     const startHour = dayOfWeek === 5 ? 16 : 15;
     const endHour = 23;
 
@@ -69,23 +102,24 @@ export function DateTimeStep() {
       slots.push(formatTime(hour, 0));  // :00 slot
       slots.push(formatTime(hour, 30)); // :30 slot
     }
-
     return slots;
+    */
+
   }, [effectiveDate]);
 
   // =========================================================
   // FETCH BOOKED SLOTS
   // =========================================================
+  //  RAMADAN MODE: API FETCHING IS DISABLED TO ALLOW CONCURRENT BOOKINGS
+  
+  /* ---  NORMAL MODE FETCHING (COMMENTED OUT FOR RAMADAN) ---
   useEffect(() => {
     const fetchBookedSlots = async () => {
       if (!effectiveDate) return;
       
       setIsLoadingSlots(true);
       try {
-        // Format date as YYYY-MM-DD for the API query
         const dateString = format(effectiveDate, 'yyyy-MM-dd');
-
-        // When rescheduling, exclude the user's own booking so their slot stays selectable
         const excludeParam = bookingId ? `&excludeId=${bookingId}` : '';
         
         const res = await fetch(`/api/book?date=${dateString}${excludeParam}`);
@@ -106,6 +140,7 @@ export function DateTimeStep() {
 
     fetchBookedSlots();
   }, [effectiveDate, bookingId]);
+  ------------------------------------------------------------- */
 
   // =========================================================
   // CALENDAR LOGIC
@@ -114,17 +149,21 @@ export function DateTimeStep() {
     start: startOfMonth(currentMonth),
     end: endOfMonth(currentMonth),
   }).filter((day) => {
-    // Show only future days starting from today
     if (isSameMonth(day, new Date())) {
       return !isBefore(day, startOfToday());
     }
     return !isBefore(day, startOfMonth(new Date()));
   });
 
-  // Check if a specific time string is in the booked list
+  //  RAMADAN MODE: Always return false
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const isSlotBooked = (checkTime: string) => false;
+
+  /* ---  NORMAL MODE CHECK (COMMENTED OUT FOR RAMADAN) ---
   const isSlotBooked = (checkTime: string) => {
     return bookedSlots.includes(checkTime);
   };
+  -------------------------------------------------------- */
 
   const nextMonth = () => setCurrentMonth(addMonths(currentMonth, 1));
   const prevMonth = () => {
